@@ -122,3 +122,44 @@ func (r *ProductRepository) GetFilteredProducts(ctx context.Context, searchQuery
 
 	return products, nil
 }
+
+func (r *ProductRepository) CreateOrder(ctx context.Context, order *models.Order) error {
+	_, err := r.db.Exec(ctx, `
+        INSERT INTO orders (user_id, total_price, products)
+        VALUES ($1, $2, $3)
+    `, order.UserID, order.TotalPrice, order.Products)
+	return err
+}
+
+func (r *ProductRepository) GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error) {
+	rows, err := r.db.Query(ctx, `
+        SELECT id, user_id, total_price, order_date, products
+        FROM orders
+        WHERE user_id = $1
+    `, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var order models.Order
+		err := rows.Scan(&order.ID, &order.UserID, &order.TotalPrice, &order.OrderDate, &order.Products)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
+func (r *ProductRepository) UpdateProductInCartStatus(ctx context.Context, productID int, inCart bool) error {
+	_, err := r.db.Exec(ctx, `
+        UPDATE products
+        SET in_cart = $1
+        WHERE id = $2
+    `, inCart, productID)
+	return err
+}

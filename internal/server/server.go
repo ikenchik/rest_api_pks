@@ -33,6 +33,8 @@ func NewServer() *Server {
 	router.HandleFunc("/products/quantity/", handler.UpdateProductQuantityHandler)
 	router.HandleFunc("/products/favorite/", handler.ToggleFavoriteHandler)
 	router.HandleFunc("/products/cart/", handler.ToggleCartHandler)
+	router.HandleFunc("/orders/create", handler.CreateOrderHandler)
+	router.HandleFunc("/orders", handler.GetOrdersHandler)
 
 	return &Server{
 		router: router,
