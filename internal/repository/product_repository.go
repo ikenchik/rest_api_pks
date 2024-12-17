@@ -4,6 +4,8 @@ import (
 	"context"
 	"rest_api_pks/internal/models"
 
+	"fmt"
+
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -79,4 +81,44 @@ func (r *ProductRepository) ToggleFavorite(ctx context.Context, id int) error {
 func (r *ProductRepository) ToggleCart(ctx context.Context, id int) error {
 	_, err := r.db.Exec(ctx, "UPDATE products SET in_cart = NOT in_cart WHERE id = $1", id)
 	return err
+}
+
+func (r *ProductRepository) GetFilteredProducts(ctx context.Context, searchQuery string, minPrice, maxPrice float64, sortBy, sortOrder string) ([]models.Product, error) {
+	query := `
+		SELECT id, title, image_url, name, price, description, specifications, quantity, is_favorite, in_cart
+		FROM products
+		WHERE ($1 = '' OR name ILIKE $1 OR title ILIKE $1)
+		AND ($2 = 0 OR price >= $2)
+		AND ($3 = 0 OR price <= $3)
+	`
+
+	args := []interface{}{"%" + searchQuery + "%", minPrice, maxPrice}
+
+	// Добавление сортировки
+	if sortBy != "" {
+		query += fmt.Sprintf(" ORDER BY %s", sortBy)
+		if sortOrder == "desc" {
+			query += " DESC"
+		} else {
+			query += " ASC"
+		}
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(&product.ID, &product.Title, &product.ImageURL, &product.Name, &product.Price, &product.Description, &product.Specifications, &product.Quantity, &product.IsFavorite, &product.InCart)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, product)
+	}
+
+	return products, nil
 }

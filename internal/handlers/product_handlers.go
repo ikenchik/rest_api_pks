@@ -18,11 +18,40 @@ func NewProductHandler(repo *repository.ProductRepository) *ProductHandler {
 }
 
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
-	products, err := h.repo.GetAllProducts(r.Context())
+	query := r.URL.Query()
+
+	// Получение параметров фильтрации
+	searchQuery := query.Get("search")
+	minPrice := query.Get("min_price")
+	maxPrice := query.Get("max_price")
+	sortBy := query.Get("sort_by")
+	sortOrder := query.Get("sort_order")
+
+	// Преобразование параметров в нужные типы
+	var minPriceFloat, maxPriceFloat float64
+	var err error
+	if minPrice != "" {
+		minPriceFloat, err = strconv.ParseFloat(minPrice, 64)
+		if err != nil {
+			http.Error(w, "Invalid min_price", http.StatusBadRequest)
+			return
+		}
+	}
+	if maxPrice != "" {
+		maxPriceFloat, err = strconv.ParseFloat(maxPrice, 64)
+		if err != nil {
+			http.Error(w, "Invalid max_price", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Получение продуктов с учетом фильтрации и сортировки
+	products, err := h.repo.GetFilteredProducts(r.Context(), searchQuery, minPriceFloat, maxPriceFloat, sortBy, sortOrder)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(products)
 }
