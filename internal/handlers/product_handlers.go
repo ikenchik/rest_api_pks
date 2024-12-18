@@ -7,6 +7,7 @@ import (
 	"rest_api_pks/internal/repository"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ProductHandler struct {
@@ -204,6 +205,9 @@ func (h *ProductHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Устанавливаем текущую дату для заказа
+	order.OrderDate = time.Now()
+
 	// Сохраняем заказ в базе данных
 	err = h.repo.CreateOrder(r.Context(), &order)
 	if err != nil {
@@ -211,12 +215,15 @@ func (h *ProductHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	for _, product := range order.Products {
-		err = h.repo.UpdateProductInCartStatus(r.Context(), product.ID, false)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	// Очищаем корзину после оформления заказа
+	productIDs := make([]int, len(order.Products))
+	for i, product := range order.Products {
+		productIDs[i] = product.ID // Используем product_id из заказа
+	}
+	err = h.repo.ClearCartAfterOrder(r.Context(), productIDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

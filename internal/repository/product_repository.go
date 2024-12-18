@@ -125,9 +125,9 @@ func (r *ProductRepository) GetFilteredProducts(ctx context.Context, searchQuery
 
 func (r *ProductRepository) CreateOrder(ctx context.Context, order *models.Order) error {
 	_, err := r.db.Exec(ctx, `
-        INSERT INTO orders (user_id, total_price, products)
-        VALUES ($1, $2, $3)
-    `, order.UserID, order.TotalPrice, order.Products)
+        INSERT INTO orders (user_id, total_price, order_date, products)
+        VALUES ($1, $2, $3, $4)
+    `, order.UserID, order.TotalPrice, order.OrderDate, order.Products)
 	return err
 }
 
@@ -162,4 +162,19 @@ func (r *ProductRepository) UpdateProductInCartStatus(ctx context.Context, produ
         WHERE id = $2
     `, inCart, productID)
 	return err
+}
+
+func (r *ProductRepository) ClearCartAfterOrder(ctx context.Context, productIDs []int) error {
+	// Обновляем состояние товаров в корзине
+	for _, productID := range productIDs {
+		_, err := r.db.Exec(ctx, `
+            UPDATE products
+            SET in_cart = false, quantity = 0
+            WHERE id = $1
+        `, productID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
